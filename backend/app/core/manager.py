@@ -40,3 +40,15 @@ class NodeAppManager:
         except APIError as e:
             print(f"Docker API error: {e}")
             raise
+    
+    def restart_app(self, container_id_or_name: str):
+        try:
+            container = self.client.containers.get(container_id_or_name)
+            container.restart() 
+            return True
+        except NotFound:
+            print(f"Cannot find container: {container_id_or_name}")
+            return False
+        except APIError as e:
+            print(f"Docker API error: {e}")
+            raise

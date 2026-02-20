@@ -34,3 +34,32 @@ async def stop_app(app_name_or_id: str):
             raise HTTPException(status_code=404, detail="No such application.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Application stop error: {e}")
+    
+@router.get("/")
+async def get_running_apps():
+    try:
+        containers = manager.list_running_apps()
+        apps_list = []
+        
+        for container in containers:
+            apps_list.append({
+                "id": container.short_id,
+                "name": container.name,
+                "status": container.status,
+                "image": container.image.tags[0] if container.image.tags else "Unknown",
+                "ports": container.ports
+            })
+            
+        return {"apps": apps_list}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Hiba az alkalmazások listázásakor: {e}")
+    
+@router.post("/{app_name_or_id}/restart")
+async def restart_app(app_name_or_id: str):
+    try:
+        if manager.restart_app(app_name_or_id):
+            return {"message": f"Application '{app_name_or_id}' succesfully restarted."}
+        else:
+            raise HTTPException(status_code=404, detail="No such application.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Application restart error: {e}")
