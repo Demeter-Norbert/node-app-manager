@@ -24,16 +24,36 @@ async def start_new_app(request: AppStartRequest):
         return {"message": "Application started", "container_id": container_id, "name": request.name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Application start error: {e}")
-
-@router.delete("/{app_name_or_id}")
+    
+@router.post("/{app_name_or_id}/stop")
 async def stop_app(app_name_or_id: str):
     try:
         if manager.stop_app(app_name_or_id):
-            return {"message": "Application succesfully stopped and deleted."}
+            return {"message": f"Application '{app_name_or_id}' succesfully stopped."}
         else:
             raise HTTPException(status_code=404, detail="No such application.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Application stop error: {e}")
+        raise HTTPException(status_code=500, detail=f"Application stopping error: {e}")
+    
+@router.post("/{app_name_or_id}/resume")
+async def resume_app(app_name_or_id: str):
+    try:
+        if manager.resume_app(app_name_or_id):
+            return {"message": f"Application '{app_name_or_id}' succesfully resumed."}
+        else:
+            raise HTTPException(status_code=404, detail="No such application.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Application resume error: {e}")
+    
+@router.post("/{app_name_or_id}/restart")
+async def restart_app(app_name_or_id: str):
+    try:
+        if manager.restart_app(app_name_or_id):
+            return {"message": f"Application '{app_name_or_id}' succesfully restarted."}
+        else:
+            raise HTTPException(status_code=404, detail="No such application.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Application restart error: {e}")
     
 @router.get("/")
 async def get_running_apps():
@@ -52,14 +72,14 @@ async def get_running_apps():
             
         return {"apps": apps_list}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Hiba az alkalmazások listázásakor: {e}")
+        raise HTTPException(status_code=500, detail=f"Application listing error: {e}")
     
-@router.post("/{app_name_or_id}/restart")
-async def restart_app(app_name_or_id: str):
+@router.delete("/{app_name_or_id}")
+async def delete_app(app_name_or_id: str):
     try:
-        if manager.restart_app(app_name_or_id):
-            return {"message": f"Application '{app_name_or_id}' succesfully restarted."}
+        if manager.delete_app(app_name_or_id):
+            return {"message": "Application succesfully stopped and deleted."}
         else:
             raise HTTPException(status_code=404, detail="No such application.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Application restart error: {e}")
+        raise HTTPException(status_code=500, detail=f"Application stop error: {e}")

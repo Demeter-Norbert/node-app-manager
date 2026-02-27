@@ -27,8 +27,32 @@ class NodeAppManager:
         except Exception as e:
             print(f"Application start error: {e}")
             raise
+        
+    def resume_app (self, container_id_or_name: str):
+        try:
+            container = self.client.containers.get(container_id_or_name)
+            container.start() 
+            return True
+        except NotFound:
+            print(f"Cannot find container: {container_id_or_name}")
+            return False
+        except APIError as e:
+            print(f"Docker API error: {e}")
+            raise
 
     def stop_app(self, container_id_or_name: str):
+        try:
+            container = self.client.containers.get(container_id_or_name)
+            container.stop() 
+            return True
+        except NotFound:
+            print(f"Cannot find container: {container_id_or_name}")
+            return False
+        except APIError as e:
+            print(f"Docker API error: {e}")
+            raise
+    
+    def delete_app(self, container_id_or_name: str):
         try:
             container = self.client.containers.get(container_id_or_name)
             container.stop()
