@@ -5,9 +5,9 @@ class NodeAppManager:
     def __init__(self):
         self.client = docker.from_env()
 
-    def list_running_apps(self, label_filter="node-manager=managed"):
+    def list_apps(self, show_all: bool = True, label_filter="node-manager=managed"):
         try:
-            return self.client.containers.list(filters={"label": label_filter})
+            return self.client.containers.list(all = show_all, filters={"label": label_filter})
         except APIError as e:
             print(f"Docker API error: {e}")
             return []

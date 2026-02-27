@@ -56,9 +56,9 @@ async def restart_app(app_name_or_id: str):
         raise HTTPException(status_code=500, detail=f"Application restart error: {e}")
     
 @router.get("/")
-async def get_running_apps():
+async def get_apps(show_all: bool = True):
     try:
-        containers = manager.list_running_apps()
+        containers = manager.list_apps(show_all = show_all)
         apps_list = []
         
         for container in containers:
