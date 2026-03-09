@@ -10,6 +10,8 @@ function App() {
   
   const [appName, setAppName] = useState("");
   const [appPort, setAppPort] = useState("");
+  // 1. ÚJ STATE AZ IMAGE-NEK (Alapértelmezett értékkel)
+  const [appImage, setAppImage] = useState("node:18-alpine");
 
   const loadData = async () => {
     try {
@@ -28,12 +30,13 @@ function App() {
 
   const handleCreateApp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!appName || !appPort) return alert("Please provide an application name and port!");
+    if (!appName || !appPort || !appImage) return alert("Please provide name, port, and image!");
     
     try {
-      await startApp(appName, parseInt(appPort));
+      await startApp(appName, parseInt(appPort), appImage);
       setAppName("");
       setAppPort("");
+      setAppImage("node:18-alpine");
       loadData();
     } catch (err) {
       console.error(err);
@@ -84,6 +87,18 @@ function App() {
                   className="w-full bg-gray-950 border border-gray-800 rounded-md px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Docker Image</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. node:20-alpine" 
+                  value={appImage}
+                  onChange={(e) => setAppImage(e.target.value)}
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Port</label>
                 <input 

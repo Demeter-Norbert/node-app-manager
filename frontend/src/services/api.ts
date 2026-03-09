@@ -8,11 +8,11 @@ export const fetchContainers = async (): Promise<DockerContainer[]> => {
   return response.data.apps;
 };
 
-export const startApp = async (name: string, target_port: number) => {
+export const startApp = async (name: string, target_port: number, image: string) => {
   const response = await axios.post(API_URL, { 
       name, 
       target_port,
-      image: "node:18-alpine"
+      image: image || "node:18-alpine" 
   });
   return response.data;
 };
