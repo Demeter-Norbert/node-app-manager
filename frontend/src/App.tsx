@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { DockerContainer } from "./types/docker";
-import { fetchContainers } from "./services/api";
+import { fetchContainers, startApp } from "./services/api";
 import DockerTable from "./components/DockerTable";
-import "./App.css";
+import { Server, Plus, RefreshCw, AlertCircle } from "lucide-react";
 
 function App() {
   const [apps, setApps] = useState<DockerContainer[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  const [appName, setAppName] = useState("");
+  const [appPort, setAppPort] = useState("");
 
   const loadData = async () => {
     try {
@@ -15,7 +18,7 @@ function App() {
       setApps(data);
     } catch (err) {
       console.error(err);
-      setError("Connection error. Is the backend running?");
+      setError("Failed to connect to the backend.");
     }
   };
 
@@ -23,20 +26,90 @@ function App() {
     loadData();
   }, []);
 
-  return (
-    <div style={{ padding: "20px", fontFamily: "sans-serif" }}>
-      <h1>Docker Manager Dashboard</h1>
-      
-      <button 
-        onClick={loadData} 
-        style={{ padding: "10px 20px", cursor: "pointer", marginBottom: "20px" }}
-      >
-        Refresh
-      </button>
+  const handleCreateApp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!appName || !appPort) return alert("Please provide an application name and port!");
+    
+    try {
+      await startApp(appName, parseInt(appPort));
+      setAppName("");
+      setAppPort("");
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while creating the application.");
+    }
+  };
 
-      {error && <p style={{ color: "red", fontWeight: "bold" }}>{error}</p>}
-      
-      {!error && <DockerTable containers={apps} />}
+  return (
+    <div className="min-h-screen p-8 max-w-7xl mx-auto">
+      <header className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-blue-600/20 text-blue-400 rounded-lg">
+            <Server size={28} />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight">Node.js Manager</h1>
+        </div>
+        <button 
+          onClick={loadData} 
+          className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-md transition-colors border border-gray-700"
+        >
+          <RefreshCw size={18} />
+          Refresh
+        </button>
+      </header>
+
+      {error && (
+        <div className="flex items-center gap-2 p-4 mb-6 text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg">
+          <AlertCircle size={20} />
+          <p className="font-medium">{error}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-4 text-gray-200">
+              <Plus size={20} className="text-blue-500" />
+              Start New App
+            </h3>
+            <form onSubmit={handleCreateApp} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Application Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. my-node-api" 
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Port</label>
+                <input 
+                  type="number" 
+                  placeholder="e.g. 3000" 
+                  value={appPort}
+                  onChange={(e) => setAppPort(e.target.value)}
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <button 
+                type="submit" 
+                className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Deploy
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div className="lg:col-span-3">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-sm">
+            {!error && <DockerTable containers={apps} onRefresh={loadData} />}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
