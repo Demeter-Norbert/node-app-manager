@@ -10,7 +10,6 @@ function App() {
   
   const [appName, setAppName] = useState("");
   const [appPort, setAppPort] = useState("");
-  // 1. ÚJ STATE AZ IMAGE-NEK (Alapértelmezett értékkel)
   const [appImage, setAppImage] = useState("node:18-alpine");
 
   const loadData = async () => {
