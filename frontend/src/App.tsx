@@ -3,6 +3,7 @@ import { DockerContainer } from "./types/docker";
 import { fetchContainers, startApp } from "./services/api";
 import DockerTable from "./components/DockerTable";
 import SystemChart from "./components/SystemChart";
+import LogViewer from "./components/LogViewer";
 import { useSystemMonitor } from "./hooks/useSystemMonitor";
 import { Server, Plus, RefreshCw, AlertCircle, Cpu, MemoryStick } from "lucide-react";
 
@@ -13,6 +14,8 @@ function App() {
   const [appName, setAppName] = useState("");
   const [appPort, setAppPort] = useState("");
   const [appImage, setAppImage] = useState("node:18-alpine");
+  const [openLogs, setOpenLogs] = useState<{id: string, name: string}[]>([]);
+  const [activeLogId, setActiveLogId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -50,45 +53,50 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen p-8 max-w-7xl mx-auto">
-      <header className="flex items-center justify-between mb-8">
+    <div className={`min-h-screen p-4 sm:p-6 lg:p-8 mx-auto transition-all duration-300 ${
+      openLogs.length > 0 
+        ? 'lg:pr-[600px] xl:pr-[824px] max-w-full' 
+        : 'max-w-[1600px]'
+    }`}>
+      
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-blue-600/20 text-blue-400 rounded-lg">
-            <Server size={28} />
+          <div className="p-2 sm:p-3 bg-blue-600/20 text-blue-400 rounded-lg">
+            <Server className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Node.js Manager</h1>
+          <h1 className="text-2xl sm:text-3xl xl:text-4xl font-bold tracking-tight">Node.js Manager</h1>
         </div>
-        <button onClick={loadData} className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-md transition-colors border border-gray-700">
+        <button onClick={loadData} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-md transition-colors border border-gray-700 shadow-sm">
           <RefreshCw size={18} /> Refresh
         </button>
       </header>
 
       {error && (
         <div className="flex items-center gap-2 p-4 mb-6 text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg">
-          <AlertCircle size={20} /> <p className="font-medium">{error}</p>
+          <AlertCircle size={20} /> <p className="font-medium text-sm sm:text-base">{error}</p>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-sm flex items-center gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 sm:p-6 shadow-sm flex items-center gap-4 hover:border-gray-700 transition-colors">
           <div className="p-3 bg-blue-500/10 text-blue-400 rounded-lg"><Server size={24} /></div>
           <div>
-            <p className="text-sm text-gray-400 font-medium">Running Apps</p>
-            <p className="text-2xl font-bold">{runningIds.length}</p>
+            <p className="text-xs sm:text-sm text-gray-400 font-medium uppercase tracking-wider">Running Apps</p>
+            <p className="text-2xl sm:text-3xl font-bold mt-1">{runningIds.length}</p>
           </div>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-sm flex items-center gap-4">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 sm:p-6 shadow-sm flex items-center gap-4 hover:border-gray-700 transition-colors">
           <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg"><Cpu size={24} /></div>
           <div>
-            <p className="text-sm text-gray-400 font-medium">Total CPU Usage</p>
-            <p className="text-2xl font-bold">{totalCpu.toFixed(1)} %</p>
+            <p className="text-xs sm:text-sm text-gray-400 font-medium uppercase tracking-wider">Total CPU</p>
+            <p className="text-2xl sm:text-3xl font-bold mt-1">{totalCpu.toFixed(1)} %</p>
           </div>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-sm flex items-center gap-4">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 sm:p-6 shadow-sm flex items-center gap-4 hover:border-gray-700 transition-colors sm:col-span-2 lg:col-span-1">
           <div className="p-3 bg-purple-500/10 text-purple-400 rounded-lg"><MemoryStick size={24} /></div>
           <div>
-            <p className="text-sm text-gray-400 font-medium">Total RAM Usage</p>
-            <p className="text-2xl font-bold">{totalMemMb.toFixed(0)} MB</p>
+            <p className="text-xs sm:text-sm text-gray-400 font-medium uppercase tracking-wider">Total RAM</p>
+            <p className="text-2xl sm:text-3xl font-bold mt-1">{totalMemMb.toFixed(0)} MB</p>
           </div>
         </div>
       </div>
@@ -125,10 +133,38 @@ function App() {
 
         <div className="lg:col-span-3">
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-sm">
-            {!error && <DockerTable containers={apps} onRefresh={loadData} stats={currentStats} />}
+            {!error && (
+              <DockerTable 
+                containers={apps} 
+                onRefresh={loadData} 
+                stats={currentStats} 
+                onViewLogs={(id, name) => {
+                  if (!openLogs.find(app => app.id === id)) {
+                    setOpenLogs(prev => [...prev, { id, name }]);
+                  }
+                  setActiveLogId(id);
+                }} 
+              />
+            )}
           </div>
         </div>
       </div>
+
+      {openLogs.length > 0 && (
+        <LogViewer 
+          apps={openLogs} 
+          activeAppId={activeLogId}
+          onSelectTab={(id) => setActiveLogId(id)}
+          onCloseTab={(id) => {
+            const newLogs = openLogs.filter(app => app.id !== id);
+            setOpenLogs(newLogs);
+            if (activeLogId === id) {
+              setActiveLogId(newLogs.length > 0 ? newLogs[0].id : null);
+            }
+          }} 
+          onCloseAll={() => setOpenLogs([])} 
+        />
+      )}
     </div>
   );
 }
