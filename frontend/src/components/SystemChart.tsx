@@ -7,7 +7,7 @@ interface SystemChartProps {
 
 export default function SystemChart({ data }: SystemChartProps) {
   return (
-    <div className="h-64 w-full mt-4">
+    <div className="h-[25vh] min-h-[200px] max-h-[350px] w-full mt-4">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
