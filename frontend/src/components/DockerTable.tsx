@@ -1,8 +1,7 @@
-import { DockerContainer } from "../types/docker";
+import { DockerContainer, ContainerStats } from '../types';
 import { formatPorts } from "../utils/formatters";
 import { stopApp, resumeApp, restartApp, deleteApp } from "../services/api";
 import { Play, Square, RotateCw, Trash2, Server, Terminal } from "lucide-react";
-import { ContainerStats } from "../hooks/useSystemMonitor";
 
 interface DockerTableProps {
   containers: DockerContainer[];

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { DockerContainer } from "./types/docker";
+import { DockerContainer, ContainerStats } from './types';
 import { fetchContainers, startApp } from "./services/api";
 import DockerTable from "./components/DockerTable";
 import SystemChart from "./components/SystemChart";

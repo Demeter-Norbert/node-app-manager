@@ -1,18 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-
-export interface ContainerStats {
-  id: string;
-  memory_usage_bytes: number;
-  memory_limit_bytes: number;
-  memory_percent: number;
-  cpu_percent: number;
-}
-
-export interface SystemHistory {
-  time: string;
-  cpu: number;
-  memory: number;
-}
+import { ContainerStats, SystemHistory } from '../types';
 
 export const useSystemMonitor = (containerIds: string[]) => {
   const [currentStats, setCurrentStats] = useState<Record<string, ContainerStats>>({});

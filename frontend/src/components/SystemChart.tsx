@@ -1,5 +1,5 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { SystemHistory } from '../hooks/useSystemMonitor';
+import { SystemHistory } from '../types';
 
 interface SystemChartProps {
   data: SystemHistory[];

@@ -1,9 +1,4 @@
-export interface ParsedLog {
-  timeStr: string;
-  showTime: boolean;
-  messageStr: string;
-  textColor: string;
-}
+import { ParsedLog } from '../types';
 
 export const parseLogs = (rawLogs: string[]): ParsedLog[] => {
   let isInErrorBlock = false;
