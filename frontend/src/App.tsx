@@ -27,8 +27,19 @@ function App() {
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
     loadData();
+
+    const timerId = setInterval(async () => {
+      try {
+        const freshData = await fetchContainers();
+        setApps(freshData);
+      } catch (err) {
+        console.error("Background refresh failed:", err); 
+      }
+    }, 3000);
+
+    return () => clearInterval(timerId);
   }, []);
 
   const runningIds = useMemo(() => {
