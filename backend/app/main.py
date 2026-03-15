@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from .api import apps as apps_router
+from app.api.monitor import router as monitor_router
 from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(apps_router.router, prefix="/api/apps", tags=["Application managemenet"])
+app.include_router(monitor_router, prefix="/api/monitor", tags=["monitor"])
 
 @app.get("/api/health")
 async def health_check():
