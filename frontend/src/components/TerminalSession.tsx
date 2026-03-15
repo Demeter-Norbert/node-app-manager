@@ -30,7 +30,11 @@ export default function TerminalSession({ appId, isActive }: TerminalSessionProp
         });
       }
     };
-    return () => ws.close();
+    return () => {
+      if (ws.readyState === 1) { 
+        ws.close();
+      }
+    };
   }, [appId]);
 
   const parsedLogs = useMemo(() => parseLogs(logs), [logs]);
