@@ -5,7 +5,7 @@ import DockerTable from "./components/DockerTable";
 import SystemChart from "./components/SystemChart";
 import LogViewer from "./components/LogViewer";
 import { useSystemMonitor } from "./hooks/useSystemMonitor";
-import { Server, Plus, RefreshCw, AlertCircle, Cpu, MemoryStick } from "lucide-react";
+import { Server, Plus, AlertCircle, Cpu, MemoryStick } from "lucide-react";
 
 function App() {
   const [apps, setApps] = useState<DockerContainer[]>([]);
@@ -77,9 +77,6 @@ useEffect(() => {
           </div>
           <h1 className="text-2xl sm:text-3xl xl:text-4xl font-bold tracking-tight">Node.js Manager</h1>
         </div>
-        <button onClick={loadData} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-md transition-colors border border-gray-700 shadow-sm">
-          <RefreshCw size={18} /> Refresh
-        </button>
       </header>
 
       {error && (
