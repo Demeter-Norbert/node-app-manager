@@ -21,7 +21,7 @@ class NodeAppManager:
                 ports={f"{port}/tcp": port}, 
                 environment=env_vars,
                 labels={"node-manager": "managed", "app-name": app_name}, 
-                restart_policy={"Name": "no"}, 
+                restart_policy={"Name": "unless-stopped"}, 
             )
             return container.id
         except Exception as e:

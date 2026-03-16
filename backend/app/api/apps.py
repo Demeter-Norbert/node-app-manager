@@ -67,7 +67,8 @@ async def get_apps(show_all: bool = True):
                 "name": container.name,
                 "status": container.status,
                 "image": container.image.tags[0] if container.image.tags else "Unknown",
-                "ports": container.ports
+                "ports": container.ports,
+                "restart_count": container.attrs.get('RestartCount', 0)
             })
             
         return {"apps": apps_list}
