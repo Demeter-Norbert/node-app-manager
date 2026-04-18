@@ -2,6 +2,7 @@ import docker
 from docker.errors import NotFound, APIError
 
 class NodeAppManager:
+    MAX_RETRIES = 3
     def __init__(self):
         self.client = docker.from_env()
 
@@ -21,7 +22,7 @@ class NodeAppManager:
                 ports={f"{port}/tcp": port}, 
                 environment=env_vars,
                 labels={"node-manager": "managed", "app-name": app_name}, 
-                restart_policy={"Name": "unless-stopped"}, 
+                restart_policy={"Name": "on-failure", "MaximumRetryCount": self.MAX_RETRIES},
             )
             return container.id
         except Exception as e:
