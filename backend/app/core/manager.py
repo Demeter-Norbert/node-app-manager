@@ -125,3 +125,5 @@ class NodeAppManager:
             }
         except Exception as e:
             return {"error": str(e)}
+        
+node_manager = NodeAppManager()

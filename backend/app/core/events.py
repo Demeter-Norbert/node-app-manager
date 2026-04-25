@@ -1,9 +1,7 @@
 import asyncio
-from app.core.manager import NodeAppManager
 from app.utils.log_analyzer import extract_nodejs_error
 from app.services.notifier import send_ntfy_alert
-
-manager = NodeAppManager()
+from app.core.manager import node_manager as manager
 
 def docker_event_listener():
     try:
