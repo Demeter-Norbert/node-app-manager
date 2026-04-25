@@ -14,6 +14,10 @@ def docker_event_listener():
                 container_name = attributes.get("name", "Unknown")
                 exit_code = attributes.get("exitCode", "0")
                 
+                if container_id in manager.intentional_stops:
+                    manager.intentional_stops.discard(container_id)
+                    continue 
+                
                 if exit_code not in ["0", "137", "143"]:
                     error_log = "Hiba a log lekérésekor."
                     try:
