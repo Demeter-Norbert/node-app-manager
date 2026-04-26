@@ -5,7 +5,7 @@ import DockerTable from "./components/DockerTable";
 import SystemChart from "./components/SystemChart";
 import LogViewer from "./components/LogViewer";
 import { useSystemMonitor } from "./hooks/useSystemMonitor";
-import { Server, Plus, AlertCircle, Cpu, MemoryStick } from "lucide-react";
+import { Server, Plus, AlertCircle, Cpu, MemoryStick, Bell, Copy, Check, ExternalLink } from "lucide-react";
 
 function App() {
   const [apps, setApps] = useState<DockerContainer[]>([]);
@@ -17,6 +17,12 @@ function App() {
   const [openLogs, setOpenLogs] = useState<{id: string, name: string}[]>([]);
   const [activeLogId, setActiveLogId] = useState<string | null>(null);
 
+  const [copied, setCopied] = useState(false);
+  
+  const [isNtfyExpanded, setIsNtfyExpanded] = useState(false);
+
+  const ntfyTopic = "NodeJS_App_Manager_123456789987654321";
+
   const loadData = async () => {
     try {
       setError(null);
@@ -27,7 +33,7 @@ function App() {
     }
   };
 
-useEffect(() => {
+  useEffect(() => {
     loadData();
 
     const timerId = setInterval(async () => {
@@ -63,20 +69,36 @@ useEffect(() => {
     }
   };
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(ntfyTopic);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className={`min-h-screen p-4 sm:p-6 lg:p-8 mx-auto transition-all duration-300 ${
       openLogs.length > 0 
         ? 'lg:pr-[600px] xl:pr-[824px] max-w-full' 
         : 'max-w-[1600px]'
     }`}>
-      
-      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+      <header className="flex flex-wrap items-center justify-between gap-4 mb-6 sm:mb-8 w-full">
         <div className="flex items-center gap-3">
           <div className="p-2 sm:p-3 bg-blue-600/20 text-blue-400 rounded-lg">
             <Server className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
           <h1 className="text-2xl sm:text-3xl xl:text-4xl font-bold tracking-tight">Node.js Manager</h1>
         </div>
+
+        {!isNtfyExpanded && (
+          <button 
+            onClick={() => setIsNtfyExpanded(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-950/30 border border-indigo-500/30 hover:bg-indigo-900/50 hover:border-indigo-500/50 text-indigo-300 rounded-full transition-all shadow-sm group whitespace-nowrap ml-auto"
+            title="Ntfy alert topic"
+          >
+            <Bell size={18} className="text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-medium">Ntfy alerts</span>
+          </button>
+        )}
       </header>
 
       {error && (
@@ -85,7 +107,48 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      {isNtfyExpanded && (
+        <div className="bg-indigo-950/30 border border-indigo-500/30 rounded-xl p-5 mb-6 sm:mb-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 transition-all hover:border-indigo-500/50 shadow-lg">
+          <div className="flex items-start sm:items-center gap-4">
+            <button 
+              onClick={() => setIsNtfyExpanded(false)}
+              className="p-3 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/40 hover:text-indigo-300 rounded-lg shrink-0 transition-colors cursor-pointer outline-none focus:ring-2 focus:ring-indigo-500/50"
+              title="Fold"
+            >
+              <Bell size={24} />
+            </button>
+            <div>
+              <h3 className="text-lg font-semibold text-indigo-200">Real time crash alerts</h3>
+              <p className="text-sm text-indigo-300/80 mt-1">
+                Get real time crash alerts to your phone if a container unexpectably crashes! Subscribe to the topic using <a href="https://ntfy.sh" target="_blank" rel="noreferrer" className="underline hover:text-indigo-200">ntfy.sh</a>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full lg:w-auto">
+            <div className="bg-gray-950 border border-gray-800 rounded-lg px-4 py-2 flex items-center justify-between min-w-[240px] flex-1 lg:flex-initial shadow-inner">
+              <span className="text-indigo-400 font-mono text-sm truncate mr-4">{ntfyTopic}</span>
+              <button 
+                onClick={handleCopy}
+                className="text-gray-500 hover:text-indigo-300 transition-colors p-1"
+                title="Copy to clipboard"
+              >
+                {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+              </button>
+            </div>
+            <a 
+              href={`https://ntfy.sh/${ntfyTopic}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="p-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/40 rounded-lg transition-colors border border-indigo-500/30 shrink-0"
+              title="Open in new window"
+            >
+              <ExternalLink size={18} />
+            </a>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 sm:p-6 shadow-sm flex items-center gap-4 hover:border-gray-700 transition-colors">
           <div className="p-3 bg-blue-500/10 text-blue-400 rounded-lg"><Server size={24} /></div>
           <div>
