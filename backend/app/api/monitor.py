@@ -1,9 +1,8 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import asyncio
-from ..core.manager import NodeAppManager
+from app.core.manager import node_manager as manager
 
 router = APIRouter()
-manager = NodeAppManager()
 
 @router.websocket("/{app_id}/stats/ws")
 async def stats_websocket(websocket: WebSocket, app_id: str):

@@ -3,8 +3,10 @@ from docker.errors import NotFound, APIError
 
 class NodeAppManager:
     MAX_RETRIES = 3
+
     def __init__(self):
         self.client = docker.from_env()
+        self.intentional_stops = set()
 
     def list_apps(self, show_all: bool = True, label_filter="node-manager=managed"):
         try:
@@ -44,38 +46,47 @@ class NodeAppManager:
     def stop_app(self, container_id_or_name: str):
         try:
             container = self.client.containers.get(container_id_or_name)
+            self.intentional_stops.add(container.id)
             container.stop() 
             return True
         except NotFound:
             print(f"Cannot find container: {container_id_or_name}")
+            self.intentional_stops.discard(container_id_or_name)
             return False
         except APIError as e:
             print(f"Docker API error: {e}")
+            self.intentional_stops.discard(container_id_or_name)
             raise
     
     def delete_app(self, container_id_or_name: str):
         try:
             container = self.client.containers.get(container_id_or_name)
+            self.intentional_stops.add(container.id)
             container.stop()
             container.remove() 
             return True
         except NotFound:
             print(f"Cannot find container: {container_id_or_name}")
+            self.intentional_stops.discard(container_id_or_name)
             return False
         except APIError as e:
             print(f"Docker API error: {e}")
+            self.intentional_stops.discard(container_id_or_name)
             raise
     
     def restart_app(self, container_id_or_name: str):
         try:
             container = self.client.containers.get(container_id_or_name)
+            self.intentional_stops.add(container.id)
             container.restart() 
             return True
         except NotFound:
             print(f"Cannot find container: {container_id_or_name}")
+            self.intentional_stops.discard(container_id_or_name)
             return False
         except APIError as e:
             print(f"Docker API error: {e}")
+            self.intentional_stops.discard(container_id_or_name)
             raise
 
     def get_container_logs(self, container_id: str, tail: int = 100) -> list:
@@ -125,3 +136,5 @@ class NodeAppManager:
             }
         except Exception as e:
             return {"error": str(e)}
+        
+node_manager = NodeAppManager()

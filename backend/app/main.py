@@ -1,14 +1,22 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from .api import apps as apps_router
-from app.api.monitor import router as monitor_router
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+
+from app.api import apps as apps_router
+from app.api.monitor import router as monitor_router
+from app.core.events import docker_event_listener
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Fast API server started.")
+    print("FastAPI server started.")
+    
+    loop = asyncio.get_running_loop()
+    listener_task = loop.run_in_executor(None, docker_event_listener)
+    
     yield
-    print("Fast API server stopped.")
+    
+    print("FastAPI server stopped.")
 
 app = FastAPI(
     title="Node.js Manager Backend",

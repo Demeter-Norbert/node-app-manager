@@ -1,8 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ..core.manager import NodeAppManager
-
-manager = NodeAppManager()
+from app.core.manager import node_manager as manager
 
 class AppStartRequest(BaseModel):
     name: str
