@@ -6,6 +6,7 @@ export interface DockerContainer {
   status: string;
   ports: any[]; 
   restart_count: number;
+  node_version: string;
 }
 
 export interface ContainerStats {

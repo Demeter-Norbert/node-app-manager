@@ -38,6 +38,7 @@ export default function DockerTable({ containers, onRefresh, stats = {}, onViewL
           <tr>
             <th className="px-4 sm:px-6 py-3 sm:py-4 font-medium">Name</th>
             <th className="px-4 sm:px-6 py-3 sm:py-4 font-medium">Status</th>
+            <th className="px-4 sm:px-6 py-3 sm:py-4 font-medium">Node</th>
             <th className="px-4 sm:px-6 py-3 sm:py-4 font-medium">CPU</th>
             <th className="px-4 sm:px-6 py-3 sm:py-4 font-medium">RAM</th>
             <th className="px-4 sm:px-6 py-3 sm:py-4 font-medium">Restarts</th>
@@ -63,6 +64,10 @@ export default function DockerTable({ containers, onRefresh, stats = {}, onViewL
                     <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? "bg-emerald-400" : "bg-rose-400"}`}></span>
                     {isRunning ? "Running" : "Stopped"}
                   </div>
+                </td>
+                
+                <td className="px-6 py-4">
+                  <span className="text-gray-300 font-mono text-xs">{app.node_version}</span>
                 </td>
                 
                 <td className="px-6 py-4 font-mono text-blue-400">
