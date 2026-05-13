@@ -60,13 +60,23 @@ async def get_apps(show_all: bool = True):
         apps_list = []
         
         for container in containers:
+            node_version = "Unknown"
+            env_vars = container.attrs.get('Config', {}).get('Env', [])
+            for env in env_vars:
+                if env.startswith("NODE_VERSION="):
+                    node_version = env.split("=")[1]
+                    if not node_version.startswith("v"):
+                        node_version = "v" + node_version
+                    break
+                    
             apps_list.append({
                 "id": container.short_id,
                 "name": container.name,
                 "status": container.status,
                 "image": container.image.tags[0] if container.image.tags else "Unknown",
                 "ports": container.ports,
-                "restart_count": container.attrs.get('RestartCount', 0)
+                "restart_count": container.attrs.get('RestartCount', 0),
+                "node_version": node_version
             })
             
         return {"apps": apps_list}
