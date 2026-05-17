@@ -125,7 +125,7 @@ class NodeAppManager:
             
             cpu_percent = 0.0
             if system_cpu_delta > 0 and cpu_delta > 0:
-                cpu_percent = (cpu_delta / system_cpu_delta) * online_cpus * 100.0
+                cpu_percent = (cpu_delta / system_cpu_delta) * 100.0
 
             return {
                 "id": container_id,
