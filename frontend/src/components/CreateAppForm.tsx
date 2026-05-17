@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Loader2 } from "lucide-react";
+import toast from 'react-hot-toast';
 
 interface CreateAppFormProps {
   onDeploy: (name: string, port: number, image: string) => Promise<void>;
@@ -14,7 +15,7 @@ const CreateAppForm: React.FC<CreateAppFormProps> = ({ onDeploy }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appName || !appPort || !appImage) {
-      return alert("Please provide name, port, and image!");
+      return toast.error("Please provide name, port, and image!");
     }
     
     setIsSubmitting(true);

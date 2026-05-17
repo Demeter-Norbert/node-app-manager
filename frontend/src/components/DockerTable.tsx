@@ -2,6 +2,7 @@ import { DockerContainer, ContainerStats } from '../types';
 import { formatPorts } from "../utils/formatters";
 import { stopApp, resumeApp, restartApp, deleteApp } from "../services/api";
 import { Play, Square, RotateCw, Trash2, Server, Terminal } from "lucide-react";
+import toast from 'react-hot-toast';
 
 interface DockerTableProps {
   containers: DockerContainer[];
@@ -26,9 +27,56 @@ export default function DockerTable({ containers, onRefresh, stats = {}, onViewL
     try {
       await actionFn(id);
       onRefresh();
+      toast.success("Action executed successfully!"); 
     } catch (error) {
-      alert("An error occurred while executing the action.");
+      toast.error("An error occurred while executing the action.");
     }
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3 min-w-[250px]">
+        <div>
+          <p className="text-sm font-medium text-gray-200">
+            Delete container <span className="font-bold text-rose-400">{name}</span>?
+          </p>
+          <p className="text-xs text-gray-400 mt-1">This action cannot be undone, deletion is permanent.</p>
+        </div>
+        
+        <div className="flex justify-end gap-2 mt-2">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await deleteApp(id);
+                onRefresh();
+                toast.success(`Container '${name}' deleted successfully.`);
+              } catch (error) {
+                toast.error(`An error occurred while deleting '${name}'.`);
+              }
+            }} 
+            className="px-3 py-1.5 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-md transition-colors shadow-sm"
+          >
+            Confirm Delete
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: Infinity, 
+      position: 'top-center', 
+      style: {
+        border: '1px solid #7f1d1d', 
+        background: '#1f2937', 
+        padding: '16px',
+        marginTop: '40vh', 
+      }
+    });
   };
 
   return (
@@ -110,7 +158,7 @@ export default function DockerTable({ containers, onRefresh, stats = {}, onViewL
                     </button>
 
                     <button onClick={() => handleAction(restartApp, app.id)} className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-md" title="Restart"><RotateCw size={16} /></button>
-                    <button onClick={() => handleAction(deleteApp, app.id)} className="p-1.5 text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md ml-2" title="Delete"><Trash2 size={16} /></button>
+                    <button onClick={() => handleDelete(app.id, app.name)} className="p-1.5 text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md ml-2" title="Delete"><Trash2 size={16} /></button>
                   </div>
                 </td>
               </tr>
