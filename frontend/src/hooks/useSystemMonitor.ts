@@ -1,34 +1,53 @@
 import { useState, useEffect, useRef } from 'react';
 import { ContainerStats, SystemHistory } from '../types';
 
+const WS_BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/^http/, "ws");
+
 export const useSystemMonitor = (containerIds: string[]) => {
   const [currentStats, setCurrentStats] = useState<Record<string, ContainerStats>>({});
   const [history, setHistory] = useState<SystemHistory[]>([]);
   
   const statsRef = useRef<Record<string, ContainerStats>>({});
   const socketsRef = useRef<Map<string, WebSocket>>(new Map());
+  const reconnectTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     const currentIds = new Set(containerIds);
 
+    const connect = (id: string) => {
+      const ws = new WebSocket(`${WS_BASE}/api/monitor/${id}/stats/ws`);
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (!data.error) {
+          statsRef.current = { ...statsRef.current, [id]: data };
+          setCurrentStats({ ...statsRef.current });
+        }
+      };
+
+      ws.onclose = () => {
+        if (socketsRef.current.has(id)) {
+          const timeout = setTimeout(() => connect(id), 3000);
+          reconnectTimeoutsRef.current.set(id, timeout);
+        }
+      };
+
+      socketsRef.current.set(id, ws);
+    };
+
     currentIds.forEach(id => {
       if (!socketsRef.current.has(id)) {
-        const ws = new WebSocket(`ws://localhost:8000/api/monitor/${id}/stats/ws`);
-        
-        ws.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          if (!data.error) {
-            statsRef.current = { ...statsRef.current, [id]: data };
-            setCurrentStats({ ...statsRef.current }); 
-          }
-        };
-
-        socketsRef.current.set(id, ws);
+        connect(id);
       }
     });
 
     for (const [id, ws] of socketsRef.current.entries()) {
       if (!currentIds.has(id)) {
+        const pending = reconnectTimeoutsRef.current.get(id);
+        if (pending) {
+          clearTimeout(pending);
+          reconnectTimeoutsRef.current.delete(id);
+        }
         ws.close();
         socketsRef.current.delete(id);
         
@@ -59,6 +78,8 @@ export const useSystemMonitor = (containerIds: string[]) => {
 
     return () => {
       clearInterval(interval);
+      reconnectTimeoutsRef.current.forEach(t => clearTimeout(t));
+      reconnectTimeoutsRef.current.clear();
       socketsRef.current.forEach(ws => ws.close());
       socketsRef.current.clear();
       statsRef.current = {};

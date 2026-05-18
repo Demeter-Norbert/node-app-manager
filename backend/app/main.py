@@ -12,7 +12,7 @@ async def lifespan(app: FastAPI):
     print("FastAPI server started.")
     
     loop = asyncio.get_running_loop()
-    listener_task = loop.run_in_executor(None, docker_event_listener)
+    loop.run_in_executor(None, docker_event_listener, loop)
     
     yield
     
