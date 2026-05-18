@@ -19,7 +19,7 @@ def docker_event_listener():
                     continue 
                 
                 if exit_code not in ["0", "137", "143"]:
-                    error_log = "Hiba a log lekérésekor."
+                    error_log = "Error retrieving logs."
                     try:
                         container = manager.client.containers.get(container_id)
                         
@@ -29,7 +29,7 @@ def docker_event_listener():
                         error_log = extract_nodejs_error(logs_str)
                             
                     except Exception as log_err:
-                        error_log = f"[Log olvasási hiba: {log_err}]"
+                        error_log = f"[Log read error: {log_err}]"
 
                     asyncio.run(send_ntfy_alert(container_name, exit_code, error_log))
     except Exception as e:

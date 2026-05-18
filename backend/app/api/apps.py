@@ -12,6 +12,16 @@ router = APIRouter()
 
 @router.post("/", status_code=201)
 async def start_new_app(request: AppStartRequest):
+    if manager.is_name_taken(request.name):
+        raise HTTPException(
+            status_code=409,
+            detail=f"A container named '{request.name}' already exists. Choose a different name."
+        )
+    if manager.is_port_taken(request.target_port):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Port {request.target_port} is already in use by another container. Choose a different port."
+        )
     try:
         container_id = manager.start_app(
             app_name=request.name,
@@ -91,4 +101,4 @@ async def delete_app(app_name_or_id: str):
         else:
             raise HTTPException(status_code=404, detail="No such application.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Application stop error: {e}")
+        raise HTTPException(status_code=500, detail=f"Application delete error: {e}")

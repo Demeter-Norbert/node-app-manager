@@ -10,6 +10,7 @@ import CreateAppForm from "./components/CreateAppForm";
 import { useSystemMonitor } from "./hooks/useSystemMonitor";
 import { Server, AlertCircle, Bell } from "lucide-react";
 import { Toaster, toast } from "react-hot-toast";
+import axios from "axios";
 
 function App() {
   const [apps, setApps] = useState<DockerContainer[]>([]);
@@ -18,7 +19,7 @@ function App() {
   const [activeLogId, setActiveLogId] = useState<string | null>(null);
   const [isNtfyExpanded, setIsNtfyExpanded] = useState(false);
 
-  const ntfyTopic = "allamvizsga_node_manager_alerts";
+  const ntfyTopic = "NodeJS_App_Manager_123456789987654321";
 
   const loadData = async () => {
     try {
@@ -26,7 +27,7 @@ function App() {
       const data = await fetchContainers();
       setApps(data);
     } catch (err) {
-      setError("Failed to connect to the backend.");
+      setError("Failed to connect to the backend. Is the server running ?");
     }
   };
 
@@ -51,7 +52,11 @@ function App() {
       loadData();
       toast.success(`${name} deployed successfully!`); 
     } catch (err) {
-      toast.error("An error occurred while creating the application.");
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        toast.error(err.response.data.detail);
+      } else {
+        toast.error("An error occurred while creating the application.");
+      }
     }
   };
 
@@ -89,8 +94,12 @@ function App() {
       </header>
 
       {error && (
-        <div className="flex items-center gap-2 p-4 mb-6 text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg">
-          <AlertCircle size={20} /> <p className="font-medium">{error}</p>
+        <div className="flex items-center gap-3 p-4 mb-6 text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg">
+          <AlertCircle size={20} className="shrink-0" />
+          <div>
+            <p className="font-semibold">Backend Unreachable</p>
+            <p className="text-sm text-red-400/80 mt-0.5">{error}</p>
+          </div>
         </div>
       )}
 
