@@ -2,8 +2,35 @@ import docker
 from docker.errors import NotFound, APIError
 
 class NodeAppManager:
+    MAX_RETRIES = 3
+
     def __init__(self):
         self.client = docker.from_env()
+        self.intentional_stops = set()
+
+    def is_name_taken(self, app_name: str) -> bool:
+        try:
+            self.client.containers.get(app_name)
+            return True
+        except NotFound:
+            return False
+        except APIError as e:
+            print(f"Docker API error during name check: {e}")
+            return False
+
+    def is_port_taken(self, port: int) -> bool:
+        try:
+            containers = self.client.containers.list(all=True)
+            for container in containers:
+                for bindings in container.ports.values():
+                    if bindings:
+                        for binding in bindings:
+                            if binding.get("HostPort") == str(port):
+                                return True
+            return False
+        except APIError as e:
+            print(f"Docker API error during port check: {e}")
+            return False
 
     def list_apps(self, show_all: bool = True, label_filter="node-manager=managed"):
         try:
@@ -21,7 +48,7 @@ class NodeAppManager:
                 ports={f"{port}/tcp": port}, 
                 environment=env_vars,
                 labels={"node-manager": "managed", "app-name": app_name}, 
-                restart_policy={"Name": "no"}, 
+                restart_policy={"Name": "on-failure", "MaximumRetryCount": self.MAX_RETRIES},
             )
             return container.id
         except Exception as e:
@@ -43,36 +70,93 @@ class NodeAppManager:
     def stop_app(self, container_id_or_name: str):
         try:
             container = self.client.containers.get(container_id_or_name)
+            self.intentional_stops.add(container.id)
             container.stop() 
             return True
         except NotFound:
             print(f"Cannot find container: {container_id_or_name}")
+            self.intentional_stops.discard(container_id_or_name)
             return False
         except APIError as e:
             print(f"Docker API error: {e}")
+            self.intentional_stops.discard(container_id_or_name)
             raise
     
     def delete_app(self, container_id_or_name: str):
         try:
             container = self.client.containers.get(container_id_or_name)
+            self.intentional_stops.add(container.id)
             container.stop()
             container.remove() 
             return True
         except NotFound:
             print(f"Cannot find container: {container_id_or_name}")
+            self.intentional_stops.discard(container_id_or_name)
             return False
         except APIError as e:
             print(f"Docker API error: {e}")
+            self.intentional_stops.discard(container_id_or_name)
             raise
     
     def restart_app(self, container_id_or_name: str):
         try:
             container = self.client.containers.get(container_id_or_name)
+            self.intentional_stops.add(container.id)
             container.restart() 
             return True
         except NotFound:
             print(f"Cannot find container: {container_id_or_name}")
+            self.intentional_stops.discard(container_id_or_name)
             return False
         except APIError as e:
             print(f"Docker API error: {e}")
+            self.intentional_stops.discard(container_id_or_name)
             raise
+
+    def get_container_logs(self, container_id: str, tail: int = 100) -> list:
+        try:
+            container = self.client.containers.get(container_id)
+            logs_bytes = container.logs(tail=tail, timestamps=True)
+            logs_str = logs_bytes.decode('utf-8')
+            return logs_str.split('\n')[:-1]
+        except docker.errors.NotFound:
+            return ["Container not found."]
+        except Exception as e:
+            return [f"Error fetching logs: {str(e)}"]
+
+    def get_container_stats(self, container_id: str) -> dict:
+        try:
+            container = self.client.containers.get(container_id)
+            stats = container.stats(stream=False)
+            
+            mem_usage = stats.get('memory_stats', {}).get('usage', 0)
+            mem_limit = stats.get('memory_stats', {}).get('limit', 1) 
+            mem_percent = (mem_usage / mem_limit) * 100.0
+
+            cpu_stats = stats.get('cpu_stats', {})
+            precpu_stats = stats.get('precpu_stats', {})
+            
+            cpu_usage_total = cpu_stats.get('cpu_usage', {}).get('total_usage', 0)
+            precpu_usage_total = precpu_stats.get('cpu_usage', {}).get('total_usage', 0)
+            
+            system_cpu_usage = cpu_stats.get('system_cpu_usage', 0)
+            system_precpu_usage = precpu_stats.get('system_cpu_usage', 0)
+
+            cpu_delta = cpu_usage_total - precpu_usage_total
+            system_cpu_delta = system_cpu_usage - system_precpu_usage
+            
+            cpu_percent = 0.0
+            if system_cpu_delta > 0 and cpu_delta > 0:
+                cpu_percent = (cpu_delta / system_cpu_delta) * 100.0
+
+            return {
+                "id": container_id,
+                "memory_usage_bytes": mem_usage,
+                "memory_limit_bytes": mem_limit,
+                "memory_percent": round(mem_percent, 2),
+                "cpu_percent": round(cpu_percent, 2)
+            }
+        except Exception as e:
+            return {"error": str(e)}
+        
+node_manager = NodeAppManager()

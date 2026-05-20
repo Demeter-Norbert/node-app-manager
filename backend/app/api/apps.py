@@ -1,8 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ..core.manager import NodeAppManager
-
-manager = NodeAppManager()
+from app.core.manager import node_manager as manager
 
 class AppStartRequest(BaseModel):
     name: str
@@ -14,6 +12,16 @@ router = APIRouter()
 
 @router.post("/", status_code=201)
 async def start_new_app(request: AppStartRequest):
+    if manager.is_name_taken(request.name):
+        raise HTTPException(
+            status_code=409,
+            detail=f"A container named '{request.name}' already exists. Choose a different name."
+        )
+    if manager.is_port_taken(request.target_port):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Port {request.target_port} is already in use by another container. Choose a different port."
+        )
     try:
         container_id = manager.start_app(
             app_name=request.name,
@@ -62,12 +70,23 @@ async def get_apps(show_all: bool = True):
         apps_list = []
         
         for container in containers:
+            node_version = "Unknown"
+            env_vars = container.attrs.get('Config', {}).get('Env', [])
+            for env in env_vars:
+                if env.startswith("NODE_VERSION="):
+                    node_version = env.split("=")[1]
+                    if not node_version.startswith("v"):
+                        node_version = "v" + node_version
+                    break
+                    
             apps_list.append({
                 "id": container.short_id,
                 "name": container.name,
                 "status": container.status,
                 "image": container.image.tags[0] if container.image.tags else "Unknown",
-                "ports": container.ports
+                "ports": container.ports,
+                "restart_count": container.attrs.get('RestartCount', 0),
+                "node_version": node_version
             })
             
         return {"apps": apps_list}
@@ -82,4 +101,4 @@ async def delete_app(app_name_or_id: str):
         else:
             raise HTTPException(status_code=404, detail="No such application.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Application stop error: {e}")
+        raise HTTPException(status_code=500, detail=f"Application delete error: {e}")
