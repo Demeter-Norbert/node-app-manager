@@ -8,6 +8,30 @@ class NodeAppManager:
         self.client = docker.from_env()
         self.intentional_stops = set()
 
+    def is_name_taken(self, app_name: str) -> bool:
+        try:
+            self.client.containers.get(app_name)
+            return True
+        except NotFound:
+            return False
+        except APIError as e:
+            print(f"Docker API error during name check: {e}")
+            return False
+
+    def is_port_taken(self, port: int) -> bool:
+        try:
+            containers = self.client.containers.list(all=True)
+            for container in containers:
+                for bindings in container.ports.values():
+                    if bindings:
+                        for binding in bindings:
+                            if binding.get("HostPort") == str(port):
+                                return True
+            return False
+        except APIError as e:
+            print(f"Docker API error during port check: {e}")
+            return False
+
     def list_apps(self, show_all: bool = True, label_filter="node-manager=managed"):
         try:
             return self.client.containers.list(all = show_all, filters={"label": label_filter})
@@ -117,15 +141,13 @@ class NodeAppManager:
             
             system_cpu_usage = cpu_stats.get('system_cpu_usage', 0)
             system_precpu_usage = precpu_stats.get('system_cpu_usage', 0)
-            
-            online_cpus = cpu_stats.get('online_cpus', 1)
 
             cpu_delta = cpu_usage_total - precpu_usage_total
             system_cpu_delta = system_cpu_usage - system_precpu_usage
             
             cpu_percent = 0.0
             if system_cpu_delta > 0 and cpu_delta > 0:
-                cpu_percent = (cpu_delta / system_cpu_delta) * online_cpus * 100.0
+                cpu_percent = (cpu_delta / system_cpu_delta) * 100.0
 
             return {
                 "id": container_id,

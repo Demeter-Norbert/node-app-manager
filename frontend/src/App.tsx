@@ -9,6 +9,8 @@ import StatsGrid from "./components/StatsGrid";
 import CreateAppForm from "./components/CreateAppForm";
 import { useSystemMonitor } from "./hooks/useSystemMonitor";
 import { Server, AlertCircle, Bell } from "lucide-react";
+import { Toaster, toast } from "react-hot-toast";
+import axios from "axios";
 
 function App() {
   const [apps, setApps] = useState<DockerContainer[]>([]);
@@ -17,7 +19,7 @@ function App() {
   const [activeLogId, setActiveLogId] = useState<string | null>(null);
   const [isNtfyExpanded, setIsNtfyExpanded] = useState(false);
 
-  const ntfyTopic = "allamvizsga_node_manager_alerts";
+  const ntfyTopic = "NodeJS_App_Manager_123456789987654321";
 
   const loadData = async () => {
     try {
@@ -25,7 +27,7 @@ function App() {
       const data = await fetchContainers();
       setApps(data);
     } catch (err) {
-      setError("Failed to connect to the backend.");
+      setError("Failed to connect to the backend. Is the server running ?");
     }
   };
 
@@ -48,8 +50,13 @@ function App() {
     try {
       await startApp(name, port, image);
       loadData();
+      toast.success(`${name} deployed successfully!`); 
     } catch (err) {
-      alert("An error occurred while creating the application.");
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        toast.error(err.response.data.detail);
+      } else {
+        toast.error("An error occurred while creating the application.");
+      }
     }
   };
 
@@ -57,6 +64,19 @@ function App() {
     <div className={`min-h-screen p-4 sm:p-6 lg:p-8 mx-auto transition-all duration-300 ${
       openLogs.length > 0 ? 'lg:pr-[600px] xl:pr-[824px] max-w-full' : 'max-w-[1600px]'
     }`}>
+      <Toaster 
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: '#1f2937',
+            color: '#f3f4f6',
+            border: '1px solid #374151',
+          },
+          success: { iconTheme: { primary: '#10b981', secondary: '#1f2937' } },
+          error: { iconTheme: { primary: '#ef4444', secondary: '#1f2937' } },
+        }}
+      />
+
       <header className="flex flex-wrap items-center justify-between gap-4 mb-6 sm:mb-8 w-full">
         <div className="flex items-center gap-3">
           <div className="p-2 sm:p-3 bg-blue-600/20 text-blue-400 rounded-lg"><Server size={28} /></div>
@@ -74,8 +94,12 @@ function App() {
       </header>
 
       {error && (
-        <div className="flex items-center gap-2 p-4 mb-6 text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg">
-          <AlertCircle size={20} /> <p className="font-medium">{error}</p>
+        <div className="flex items-center gap-3 p-4 mb-6 text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg">
+          <AlertCircle size={20} className="shrink-0" />
+          <div>
+            <p className="font-semibold">Backend Unreachable</p>
+            <p className="text-sm text-red-400/80 mt-0.5">{error}</p>
+          </div>
         </div>
       )}
 

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { parseLogs } from '../utils/logParser';
 
+const WS_BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/^http/, "ws");
+
 interface TerminalSessionProps {
   appId: string;
   isActive: boolean;
@@ -17,23 +19,39 @@ export default function TerminalSession({ appId, isActive }: TerminalSessionProp
   }, [logs, isActive]);
 
   useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8000/api/monitor/${appId}/logs/ws`);
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.logs) {
-        setLogs((prevLogs) => {
-          if (prevLogs.length === 0) return data.logs;
-          const isSameLength = prevLogs.length === data.logs.length;
-          const isSameLastLine = prevLogs[prevLogs.length - 1] === data.logs[data.logs.length - 1];
-          if (isSameLength && isSameLastLine) return prevLogs; 
-          return data.logs; 
-        });
-      }
+    let ws: WebSocket;
+    let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let isClosed = false;
+
+    const connect = () => {
+      ws = new WebSocket(`${WS_BASE}/api/monitor/${appId}/logs/ws`);
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.logs) {
+          setLogs((prevLogs) => {
+            if (prevLogs.length === 0) return data.logs;
+            const isSameLength = prevLogs.length === data.logs.length;
+            const isSameLastLine = prevLogs[prevLogs.length - 1] === data.logs[data.logs.length - 1];
+            if (isSameLength && isSameLastLine) return prevLogs;
+            return data.logs;
+          });
+        }
+      };
+
+      ws.onclose = () => {
+        if (!isClosed) {
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
     };
+
+    connect();
+
     return () => {
-      if (ws.readyState === 1) { 
-        ws.close();
-      }
+      isClosed = true;
+      clearTimeout(reconnectTimeout);
+      ws?.close();
     };
   }, [appId]);
 

@@ -32,24 +32,26 @@ export default function SystemChart({ data }: SystemChartProps) {
     labels: data.map(d => d.time),
     datasets: [
       {
-        label: 'CPU %',
+        label: 'CPU',
         data: data.map(d => d.cpu),
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: '#3b82f6', // blue-500
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
         fill: true,
         tension: 0.4, 
         pointRadius: 0, 
         borderWidth: 2,
+        yAxisID: 'y', 
       },
       {
-        label: 'RAM MB',
+        label: 'RAM',
         data: data.map(d => d.memory),
-        borderColor: '#8b5cf6', 
-        backgroundColor: 'rgba(139, 92, 246, 0.2)',
+        borderColor: '#10b981', 
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
         fill: true,
         tension: 0.4,
         pointRadius: 0,
         borderWidth: 2,
+        yAxisID: 'y1', 
       },
     ],
   };
@@ -63,7 +65,14 @@ export default function SystemChart({ data }: SystemChartProps) {
     },
     plugins: {
       legend: {
-        display: false,
+        display: true,
+        position: 'top' as const,
+        labels: {
+          color: '#9ca3af',
+          usePointStyle: true,
+          boxWidth: 6,
+          padding: 30, 
+        }
       },
       tooltip: {
         backgroundColor: '#1f2937',
@@ -71,6 +80,19 @@ export default function SystemChart({ data }: SystemChartProps) {
         bodyColor: '#e5e7eb', 
         borderColor: '#374151', 
         borderWidth: 1,
+        callbacks: {
+          label: function(context: any) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y.toFixed(2);
+              label += context.dataset.label === 'CPU' ? '%' : ' MB';
+            }
+            return label;
+          }
+        }
       },
     },
     scales: {
@@ -80,15 +102,39 @@ export default function SystemChart({ data }: SystemChartProps) {
         },
         ticks: {
           color: '#9ca3af', 
-          maxTicksLimit: 5, 
+          maxTicksLimit: 6, 
+          maxRotation: 0,   
+          autoSkipPadding: 15, 
         },
       },
       y: {
+        type: 'linear' as const,
+        display: true,
+        position: 'left' as const,
+        max: 100, 
         grid: {
           color: '#374151',
         },
         ticks: {
-          color: '#9ca3af',
+          color: '#3b82f6', 
+          callback: function(value: any) {
+            return value + '%';
+          }
+        },
+        beginAtZero: true,
+      },
+      y1: {
+        type: 'linear' as const,
+        display: true,
+        position: 'right' as const,
+        grid: {
+          drawOnChartArea: false, 
+        },
+        ticks: {
+          color: '#10b981',
+          callback: function(value: any) {
+            return value + ' MB';
+          }
         },
         beginAtZero: true,
       },
@@ -96,8 +142,8 @@ export default function SystemChart({ data }: SystemChartProps) {
   };
 
   return (
-    <div className="h-[25vh] min-h-[200px] max-h-[350px] w-full mt-4">
-      <Line data={chartData} options={options} />
+    <div className="h-[25vh] min-h-[250px] max-h-[350px] w-full mt-2">
+      <Line data={chartData} options={options as any} />
     </div>
   );
 }

@@ -6,13 +6,14 @@ import asyncio
 from app.api import apps as apps_router
 from app.api.monitor import router as monitor_router
 from app.core.events import docker_event_listener
+from app.config import CORS_ORIGINS
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("FastAPI server started.")
     
     loop = asyncio.get_running_loop()
-    listener_task = loop.run_in_executor(None, docker_event_listener)
+    loop.run_in_executor(None, docker_event_listener, loop)
     
     yield
     
@@ -27,7 +28,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5175", "http://127.0.0.1:5175", "http://localhost:5173", "http://127.0.0.1:5173"], 
+    allow_origins=CORS_ORIGINS, 
     allow_credentials=True,
     allow_methods=["*"],  
     allow_headers=["*"],
