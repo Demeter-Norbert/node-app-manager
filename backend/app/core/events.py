@@ -3,7 +3,7 @@ from app.utils.log_analyzer import extract_nodejs_error
 from app.services.notifier import send_ntfy_alert
 from app.core.manager import node_manager as manager
 
-def docker_event_listener():
+def docker_event_listener(loop: asyncio.AbstractEventLoop):
     try:
         print("Docker event listener started ...")
         for event in manager.client.events(decode=True, filters={"type": "container", "event": "die"}):

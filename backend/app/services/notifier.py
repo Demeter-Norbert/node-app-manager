@@ -1,6 +1,6 @@
 import httpx
+from app.config import NTFY_TOPIC, NTFY_URL
 
-NTFY_TOPIC = "NodeJS_App_Manager_123456789987654321" 
 
 async def send_ntfy_alert(container_name: str, exit_code: str, error_log: str):
     message = (
@@ -13,7 +13,7 @@ async def send_ntfy_alert(container_name: str, exit_code: str, error_log: str):
     try:
         async with httpx.AsyncClient() as client:
             await client.post(
-                f"https://ntfy.sh/{NTFY_TOPIC}",
+                f"{NTFY_URL}/{NTFY_TOPIC}",
                 data=message.encode('utf-8'),
                 headers={
                     "Title": "Container Crash Alert",
