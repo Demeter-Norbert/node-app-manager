@@ -28,7 +28,7 @@
 
 **Node.js App Manager** is a lightweight, self-hosted platform for running and observing Node.js applications inside isolated Docker containers. Built as a final-year licence thesis project, it demonstrates a production-grade approach to container orchestration at a small scale — combining a Python-based REST and WebSocket backend with a reactive TypeScript frontend.
 
-Instead of reaching for heavyweight tools like Kubernetes, this project delivers a focused, purpose-built dashboard: deploy a Node.js app in seconds, watch its CPU and memory in real time, tail its logs in a terminal-style viewer, and get an instant push notification on your phone the moment it crashes.
+This project delivers a focused, purpose-built dashboard: deploy a Node.js app in seconds, watch its CPU and memory in real time, tail its logs in a terminal-style viewer, and get an instant push notification on your phone the moment it crashes.
 
 The system is designed to be operated by a system administrator, where the administrator brings pre-built Docker images and other Node.js applications, and the platform handles their lifecycle, monitoring, and alerting.
 
@@ -147,7 +147,6 @@ The backend runs as a single FastAPI process. The `NodeAppManager` class wraps t
 ```
 node-app-manager/
 ├── backend/
-│   ├── .env.example             # Configuration template — copy to .env
 │   └── app/
 │       ├── api/
 │       │   ├── apps.py          # CRUD endpoints + port/name conflict detection
@@ -162,7 +161,6 @@ node-app-manager/
 │       ├── config.py            # Central settings — reads from .env
 │       └── main.py              # FastAPI app setup, CORS, lifespan
 ├── frontend/
-│   ├── .env.example             # Configuration template — copy to .env
 │   └── src/
 │       ├── components/
 │       │   ├── CreateAppForm.tsx    # Deploy a new container
@@ -253,7 +251,7 @@ The frontend will be available at `http://localhost:5173`.
 
 ## Configuration
 
-All configuration is done via `.env` files. Never commit `.env` files to version control — only the `.env.example` templates should be committed.
+All configuration is done via `.env` files.
 
 ### Backend — `backend/.env`
 
@@ -403,7 +401,7 @@ To receive alerts on your phone, install the [ntfy app](https://ntfy.sh) and sub
 This project was developed as a **licence thesis** at the Sapientia Hungarian University of Transylvania, Faculty of Technical and Human Sciences.
 
 **Author:** Demeter Norbert-Marton  
-**Year:** 2025
+**Year:** 2026
 
 ---
 
