@@ -1,0 +1,24 @@
+[Unit]
+Description=Node.js App Manager - Backend
+After=network.target
+
+[Service]
+Type=simple
+User=user
+WorkingDirectory=/home/user/node-app-manager/backend
+
+Environment="PATH=/home/user/.local/bin:/usr/bin:/bin"
+Environment="DOCKER_HOST=unix:///run/user/1000/docker.sock"
+
+PassEnvironment=DOCKER_HOST
+
+ExecStart=/home/user/.local/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
