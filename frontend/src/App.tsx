@@ -52,7 +52,7 @@ function App() {
       loadData();
       toast.success(`${name} deployed successfully!`); 
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 409) {
+      if (axios.isAxiosError(err) && err.response?.data?.detail) {
         toast.error(err.response.data.detail);
       } else {
         toast.error("An error occurred while creating the application.");
