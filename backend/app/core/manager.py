@@ -18,6 +18,16 @@ class NodeAppManager:
             print(f"Docker API error during name check: {e}")
             return False
 
+    def is_image_existing(self, image_name: str) -> bool:
+        try:
+            self.client.images.get(image_name)
+            return True
+        except NotFound:
+            return False
+        except APIError as e:
+            print(f"Docker API error during image check: {e}")
+            return False
+
     def is_port_taken(self, port: int) -> bool:
         try:
             containers = self.client.containers.list(all=True)
