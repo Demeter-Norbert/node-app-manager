@@ -27,7 +27,7 @@
 
 ## Overview
 
-**Node.js App Manager** is a self-hosted platform for running and observing Node.js applications inside isolated Docker containers. Built as a final-year licence thesis project, it demonstrates a production-grade approach to container orchestration at a small scale — combining a Python-based REST and WebSocket backend with a reactive TypeScript frontend.
+**Node.js App Manager** is a lightweight, self-hosted platform for running and observing Node.js applications inside isolated Docker containers. Built as a final-year licence thesis project, it demonstrates a production-grade approach to container orchestration at a small scale — combining a Python-based REST and WebSocket backend with a reactive TypeScript frontend.
 
 This project delivers a focused, purpose-built dashboard: deploy a Node.js app in seconds, watch its CPU and memory in real time, tail its logs in a terminal-style viewer, and get an instant push notification on your phone the moment it crashes.
 
@@ -66,62 +66,61 @@ The system is designed to be operated by a system administrator, where the admin
 - The ntfy server URL and topic are fully configurable via environment variables — supports self-hosted ntfy instances
 
 ### Environment-Based Configuration
-- The **backend** is configured via a `.env` file — no need to touch source code when deploying
+- The **backend** is fully configurable via a `.env` file — no need to touch source code when deploying
 - The backend exposes a central `config.py` that is the single source of truth for all runtime settings
-- The **frontend** uses no environment variables in production — API calls use relative URLs (`/api/...`) and WebSocket connections derive the host from `window.location`, making the frontend automatically adapt to any domain or IP
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        Browser (React)                       │
-│                                                              │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐   │
-│  │  HTTP/REST  │  │  WS /stats   │  │    WS /logs        │   │
-│  │  /api/...   │  │  per container│  │  per container    │   │
-│  └──────┬──────┘  └──────┬───────┘  └─────────┬──────────┘   │
-└─────────┼────────────────┼─────────────────────┼─────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                        Browser (React)                      │
+│                                                             │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐  │
+│  │  HTTP/REST  │  │  WS /stats   │  │    WS /logs        │  │
+│  │  /api/      │  │  /api/monitor│  │  /api/monitor      │  │
+│  └──────┬──────┘  └──────┬───────┘  └──────────┬─────────┘  │
+└─────────┼────────────────┼─────────────────────┼────────────┘
           │                │                     │
-┌─────────▼────────────────▼─────────────────────▼─────────────┐
-│                        Nginx (port 80)                       │
-│                                                              │
-│  /          → serves frontend static files (dist/)           │
-│  /api/      → proxy_pass to FastAPI :8000                    │
-│  /api/monitor/ → proxy_pass + WebSocket upgrade to :8000     │
-└─────────────────────────┬────────────────────────────────────┘
+┌─────────▼────────────────▼─────────────────────▼────────────┐
+│              Apache HTTP Server (Reverse Proxy)             │
+│                                                             │
+│  /             → React SPA static files                     │
+│  /api/         → FastAPI (HTTP proxy)                       │
+│  /api/monitor/ → FastAPI (WebSocket via mod_proxy_wstunnel) │
+└─────────────────────────┬───────────────────────────────────┘
                           │
-┌─────────────────────────▼────────────────────────────────────┐
-│                   FastAPI Backend (Python)                   │
-│                  127.0.0.1:8000 (internal only)              │
-│                                                              │
-│  ┌──────────────┐   ┌──────────────┐   ┌─────────────────┐   │
-│  │  apps router │   │monitor router│   │  event listener │   │
-│  │  (CRUD +     │   │  (WS stats + │   │  (background    │   │
-│  │  conflict +  │   │   WS logs)   │   │   thread)       │   │
-│  │  img check)  │   │              │   │                 │   │
-│  └──────┬───────┘   └──────┬───────┘   └───────┬─────────┘   │
-│         │                  │                   │             │
-│  ┌──────▼──────────────────▼───────────────────▼──────────┐  │
-│  │               NodeAppManager (Docker SDK)              │  │
-│  └────────────────────────┬───────────────────────────────┘  │
-└───────────────────────────┼──────────────────────────────────┘
+┌─────────────────────────▼───────────────────────────────────┐
+│                   FastAPI Backend (Python)                  │
+│                                                             │
+│  ┌──────────────┐   ┌──────────────┐   ┌─────────────────┐  │
+│  │  apps router │   │monitor router│   │  event listener │  │
+│  │  (CRUD +     │   │  (WS stats + │   │  (background    │  │
+│  │  conflict    │   │   WS logs)   │   │   thread)       │  │
+│  │  detection)  │   │              │   │                 │  │
+│  └──────┬───────┘   └──────┬───────┘   └───────┬─────────┘  │
+│         │                  │                   │            │
+│  ┌──────▼──────────────────▼───────────────────▼──────────┐ │
+│  │               NodeAppManager (Docker SDK)              │ │
+│  └────────────────────────┬───────────────────────────────┘ │
+└───────────────────────────┼─────────────────────────────────┘
                             │
-┌───────────────────────────▼──────────────────────────────────┐
-│              Docker Engine (rootless in production)          │
-│                                                              │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
-│   │  custom      │  │  custom      │  │   custom         │   │
-│   │  image       │  │  image       │  │   image          │   │
-│   │  container   │  │  container   │  │   container      │   │
-│   └──────────────┘  └──────────────┘  └──────────────────┘   │ 
-└──────────────────────────────────────────────────────────────┘
+┌───────────────────────────▼─────────────────────────────────┐
+│                       Docker Engine                         │
+│                                                             │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│   │  custom      │  │  custom      │  │   custom         │  │
+│   │  image       │  │  image       │  │   container      │  │
+│   │  container   │  │  container   │  │                  │  │
+│   └──────────────┘  └──────────────┘  └──────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
                             │
                On crash → ntfy.sh push alert
 ```
 
-In production the backend binds only to `127.0.0.1:8000` and is never directly exposed to the network. All traffic enters through Nginx on port 80. The frontend uses relative URLs (`/api/...`) so the browser always calls the same origin — Nginx handles the routing transparently. WebSocket connections use `window.location` to derive the correct host automatically, so no hardcoded URLs exist anywhere in the frontend.
+The backend runs as a single FastAPI process. The `NodeAppManager` class wraps the Docker SDK and is shared across all API routes. The Docker event listener runs on a separate thread via `run_in_executor` and uses `asyncio.run_coroutine_threadsafe()` to schedule push notifications onto the main event loop without blocking the background thread.
+
 ---
 
 ## Tech Stack
@@ -158,7 +157,6 @@ In production the backend binds only to `127.0.0.1:8000` and is never directly e
 node-app-manager/
 ├── backend/
 │   └── app/
-│       ├── .env.example         # Configuration template — copy to .env
 │       ├── api/
 │       │   ├── apps.py          # CRUD endpoints + port/name conflict detection
 │       │   └── monitor.py       # WebSocket endpoints for stats and logs
@@ -170,6 +168,7 @@ node-app-manager/
 │       ├── utils/
 │       │   └── log_analyzer.py  # Node.js error extractor from raw logs
 │       ├── config.py            # Central settings — reads from .env
+│       ├── .env.example         # Environment variable template
 │       └── main.py              # FastAPI app setup, CORS, lifespan
 ├── frontend/
 │   └── src/
@@ -192,8 +191,9 @@ node-app-manager/
 │       │   └── logParser.ts         # Log line parser + colour classification
 │       └── App.tsx                  # Root component and layout
 ├── deploy/
-│   ├── node-manager-backend.service  # systemd service file — copy to /etc/systemd/system/
-│   └── nginx-node-manager.conf       # Nginx config — copy to /etc/nginx/sites-available/
+│   ├── apache-node-manager.conf     # Apache virtual host config (reverse proxy)
+│   ├── nginx-node-manager.conf      # Nginx server block config (alternative)
+│   └── node-manager-backend.service # systemd user service for the backend
 ├── requirements.txt
 └── README.md
 ```
@@ -204,11 +204,11 @@ node-app-manager/
 
 ### Prerequisites
 
-- **Docker** installed and running on the host machine
+- **Docker** installed and running — rootless Docker is recommended for security
 - **Python 3.10+**
-- **Node.js 18+** (LTS) and **npm** (only needed to build the frontend once)
-- **Nginx** (for production serving)
-- The user running the backend must belong to the `docker` group, or Docker must be running in rootless mode (recomended)
+- **Node.js 18+** (LTS) and **npm**
+- **Apache HTTP Server** (for production) with `mod_proxy`, `mod_proxy_http`, `mod_proxy_wstunnel`, and `mod_rewrite`
+- The user running the backend must have permission to access the Docker socket
 
 ---
 
@@ -218,19 +218,18 @@ node-app-manager/
 # 1. Navigate to the backend directory
 cd backend
 
-# 2. (Recommended) Create and activate a virtual environment
+# 2. Create and activate a virtual environment
 python -m venv venv
 source venv/bin/activate        # Linux / macOS
-# venv\Scripts\activate         # Windows
 
 # 3. Install Python dependencies
 pip install -r requirements.txt
 
 # 4. Create your local .env from the template
-cp .env.example .env
+cp app/.env.example app/.env
 
 # 5. Edit .env and set your values (see Configuration below)
-nano .env
+nano app/.env
 
 # 6. Start the FastAPI server
 uvicorn app.main:app --reload --port 8000
@@ -250,35 +249,32 @@ cd frontend
 # 2. Install dependencies
 npm install
 
-# 3. Build for production
-npm run build
-# Output is placed in the dist/ folder
-```
-
-> **No `.env` file is needed.** The frontend uses relative URLs (`/api/...`) for REST calls and derives the WebSocket host from `window.location` — it adapts automatically to whatever domain or IP Nginx is serving from.
-
-For **local development** only (without Nginx):
-```bash
+# 3. Start the development server
 npm run dev
-# Available at http://localhost:5173
-# The backend must be running at http://localhost:8000
 ```
 
-The frontend will be available at `http://localhost:5173`.
+The frontend will be available at `http://localhost:5173`. All API requests use relative paths (`/api/...`) and are proxied to the backend automatically in production via Apache.
 
 ---
 
 ## Configuration
 
-All configuration is done via the backend `.env` file. Never commit `.env` to version control — only `.env.example` should be committed.
+All runtime configuration is done via `backend/app/.env`.
 
-### Backend — `backend/.env`
+### Backend — `backend/app/.env`
 
 | Variable | Default | Description |
 |---|---|---|
 | `NTFY_TOPIC` | `NodeJS_App_Manager_123456789987654321` | The ntfy topic for crash alerts. Must match what is shown in the frontend dashboard. |
 | `NTFY_URL` | `https://ntfy.sh` | The ntfy server base URL. Change this if you are self-hosting ntfy. |
-| `CORS_ORIGINS` | `http://localhost:5173` | The URL the frontend is served from. Set this to your server IP or domain in production. |
+| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:5175` | Comma-separated list of allowed frontend origins. Update to the server address when deploying. |
+
+**Development:**
+```env
+NTFY_TOPIC=NodeJS_App_Manager_123456789987654321
+NTFY_URL=https://ntfy.sh
+CORS_ORIGINS=http://localhost:5173
+```
 
 **Production:**
 ```env
@@ -287,153 +283,48 @@ NTFY_URL=https://ntfy.sh
 CORS_ORIGINS=http://your-server-ip
 ```
 
-> **Frontend has no `.env` file.** API calls use relative paths and WebSocket connections use `window.location`, so no URL configuration is needed in the frontend regardless of where it is deployed.
-
-After changing `backend/.env`, restart the backend service:
-```bash
-sudo systemctl restart node-manager-backend
-```
 ---
+
 ## Production Deployment
 
-### Overview
+The `deploy/` folder contains all files needed to run the system as a persistent service.
 
-In production the system runs as two persistent services managed by systemd:
-
-```
-Server boot
-    │
-    ├── systemd → node-manager-backend  (uvicorn on 127.0.0.1:8000)
-    └── systemd → nginx                 (port 80)
-                   ├── /            → serves dist/ (React static files)
-                   ├── /api/        → proxy to :8000 (REST)
-                   └── /api/monitor/ → proxy to :8000 (WebSocket)
-```
-
-
-### 1. Clone the Repository
+### 1. Backend — systemd user service
 
 ```bash
-git clone https://github.com/Demeter-Norbert/node-app-manager.git
-cd node-app-manager
+mkdir -p ~/.config/systemd/user/
+cp deploy/node-manager-backend.service ~/.config/systemd/user/
+# Edit the service file to match the actual user, path, and UID
+systemctl --user daemon-reload
+systemctl --user enable node-manager-backend
+systemctl --user start node-manager-backend
+loginctl enable-linger $USER
 ```
 
-### 2. Backend Setup
-
-```bash
-cd backend
-python3.10 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-nano .env   # Set CORS_ORIGINS to your server IP or domain
-```
-
-### 3. Install the Backend systemd Service
-
-```bash
-sudo cp deploy/node-manager-backend.service \
-         /etc/systemd/system/node-manager-backend.service
-
-# Edit the file if your username or path differs from the defaults
-sudo nano /etc/systemd/system/node-manager-backend.service
-
-sudo systemctl daemon-reload
-sudo systemctl enable node-manager-backend
-sudo systemctl start node-manager-backend
-
-# Verify
-sudo systemctl status node-manager-backend
-```
-
-### 4. Build and Deploy the Frontend
+### 2. Frontend — build and copy to web root
 
 ```bash
 cd frontend
 npm install
 npm run build
-
-# Copy the built files to the web directory
-sudo mkdir -p /var/www/node-manager
-sudo cp -r dist/* /var/www/node-manager/
+sudo mkdir -p /var/www/html/nodeapp
+sudo cp -r dist/* /var/www/html/nodeapp/
 ```
 
-### 5. Configure Nginx
+### 3. Apache — reverse proxy setup
 
 ```bash
-sudo cp deploy/nginx-node-manager.conf \
-         /etc/nginx/sites-available/node-manager
-
-# Edit server_name to your server IP or domain
-sudo nano /etc/nginx/sites-available/node-manager
-
-sudo ln -s /etc/nginx/sites-available/node-manager \
-           /etc/nginx/sites-enabled/
-sudo nginx -t          # Should print: syntax is ok
-sudo systemctl enable nginx
-sudo systemctl start nginx
+sudo cp deploy/apache-node-manager.conf /etc/apache2/sites-available/node-manager.conf
+sudo a2enmod proxy proxy_http proxy_wstunnel rewrite
+sudo a2ensite node-manager.conf
+sudo apache2ctl configtest
+sudo systemctl reload apache2
 ```
 
-### 7. Rootless Docker (Recommended for Security)
+An Nginx alternative configuration is also provided in `deploy/nginx-node-manager.conf` for deployments that use Nginx instead of Apache.
 
-Running Docker in rootless mode means the daemon and all containers run as a normal user. If a container is ever compromised, it has no root access to the host.
-
-```bash
-# Install prerequisites
-sudo apt install -y uidmap dbus-user-session
-
-# Run the setup tool as your normal user (not sudo)
-dockerd-rootless-setuptool.sh install
-
-# Enable and start the rootless daemon
-systemctl --user enable docker
-systemctl --user start docker
-
-# Persist the daemon across logouts
-sudo loginctl enable-linger $USER
-
-# Export the socket path (add to ~/.bashrc)
-export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
-```
-
-Update the backend service file to point to the rootless socket:
-```ini
-Environment=DOCKER_HOST=unix:///run/user/1000/docker.sock
-```
-Replace `1000` with your actual UID (`id -u`).
-
-
-### Updating the Frontend After Code Changes
-
-```bash
-cd frontend
-npm run build
-sudo cp -r dist/* /var/www/node-manager/
-# Nginx picks up changes immediately — no restart needed
-```
-
-### Updating the Backend After Code Changes
-
-```bash
-sudo systemctl restart node-manager-backend
-```
-
-### Useful Service Commands
-
-```bash
-# Check backend status
-sudo systemctl status node-manager-backend
-
-# Watch backend logs live
-sudo journalctl -u node-manager-backend -f
-
-# Restart backend
-sudo systemctl restart node-manager-backend
-
-# Check Nginx status
-sudo systemctl status nginx
-```
 ---
+
 ## API Reference
 
 All endpoints are prefixed with `/api`.
@@ -473,10 +364,6 @@ All endpoints are prefixed with `/api`.
 { "detail": "Port 3000 is already in use by another container. Choose a different port." }
 ```
 
-- `HTTP 404` if the image name does not exist:
-```json
-{ "detail": "Image 'node:99-alpine' not found. Check the image name and make sure it exists." }
-```
 ### Monitoring — `/api/monitor` (WebSocket)
 
 | Protocol | Endpoint | Description |
@@ -494,6 +381,7 @@ All endpoints are prefixed with `/api`.
   "cpu_percent": 1.45
 }
 ```
+
 ---
 
 ## Key Components
@@ -532,7 +420,7 @@ The crash detection pipeline works as follows:
 2. **Exit Code Filtering** — exits with code `0` (clean), `137` (SIGKILL), or `143` (SIGTERM) are considered intentional and ignored. Only genuinely unexpected crashes are processed.
 3. **Intentional Stop Guard** — if the container ID is in the `intentional_stops` set (populated by manual stop/restart/delete), the alert is suppressed and the ID is removed from the set.
 4. **Log Extraction** — the last 200 log lines are fetched and passed through `log_analyzer.py` to extract the relevant error block.
-5. **Push Notification** — `notifier.py` uses `asyncio.run_coroutine_threadsafe()` to schedule an async HTTP POST onto the main event loop, sending the alert to the configured ntfy server and topic.
+5. **Push Notification** — `notifier.py` sends an async HTTP POST via `asyncio.run_coroutine_threadsafe()`, scheduling the notification onto the main event loop and delivering the alert to the configured ntfy server and topic.
 
 To receive alerts on your phone, install the [ntfy app](https://ntfy.sh) and subscribe to the topic shown in the dashboard's notification banner.
 
