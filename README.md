@@ -17,6 +17,7 @@
   - [Backend Setup](#backend-setup)
   - [Frontend Setup](#frontend-setup)
 - [Configuration](#configuration)
+- [Production Deployment](#production-deployment)
 - [API Reference](#api-reference)
 - [Key Components](#key-components)
 - [Crash Alert System](#crash-alert-system)
@@ -65,7 +66,7 @@ The system is designed to be operated by a system administrator, where the admin
 - The ntfy server URL and topic are fully configurable via environment variables — supports self-hosted ntfy instances
 
 ### Environment-Based Configuration
-- Both the **frontend** and **backend** are fully configurable via `.env` files — no need to touch source code when deploying
+- The **backend** is fully configurable via a `.env` file — no need to touch source code when deploying
 - The backend exposes a central `config.py` that is the single source of truth for all runtime settings
 
 ---
@@ -73,44 +74,52 @@ The system is designed to be operated by a system administrator, where the admin
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        Browser (React)                       │
-│                                                              │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐   │
-│  │  HTTP/REST  │  │  WS /stats   │  │    WS /logs        │   │
-│  │  (axios)    │  │ per container│  │  per container     │   │
-│  └──────┬──────┘  └──────┬───────┘  └─────────┬──────────┘   │
-└─────────┼────────────────┼─────────────────────┼─────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                        Browser (React)                      │
+│                                                             │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐  │
+│  │  HTTP/REST  │  │  WS /stats   │  │    WS /logs        │  │
+│  │  /api/      │  │  /api/monitor│  │  /api/monitor      │  │
+│  └──────┬──────┘  └──────┬───────┘  └──────────┬─────────┘  │
+└─────────┼────────────────┼─────────────────────┼────────────┘
           │                │                     │
-┌─────────▼────────────────▼─────────────────────▼─────────────┐
-│                   FastAPI Backend (Python)                   │
-│                                                              │
-│  ┌──────────────┐   ┌──────────────┐   ┌─────────────────┐   │
-│  │  apps router │   │monitor router│   │  event listener │   │
-│  │  (CRUD +     │   │  (WS stats + │   │  (background    │   │
-│  │  conflict    │   │   WS logs)   │   │   thread)       │   │
-│  │  detection)  │   │              │   │                 │   │
-│  └──────┬───────┘   └──────┬───────┘   └───────┬─────────┘   │
-│         │                  │                   │             │
-│  ┌──────▼──────────────────▼───────────────────▼──────────┐  │
-│  │               NodeAppManager (Docker SDK)              │  │
-│  └────────────────────────┬───────────────────────────────┘  │
-└───────────────────────────┼──────────────────────────────────┘
+┌─────────▼────────────────▼─────────────────────▼────────────┐
+│              Apache HTTP Server (Reverse Proxy)             │
+│                                                             │
+│  /             → React SPA static files                     │
+│  /api/         → FastAPI (HTTP proxy)                       │
+│  /api/monitor/ → FastAPI (WebSocket via mod_proxy_wstunnel) │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                   FastAPI Backend (Python)                  │
+│                                                             │
+│  ┌──────────────┐   ┌──────────────┐   ┌─────────────────┐  │
+│  │  apps router │   │monitor router│   │  event listener │  │
+│  │  (CRUD +     │   │  (WS stats + │   │  (background    │  │
+│  │  conflict    │   │   WS logs)   │   │   thread)       │  │
+│  │  detection)  │   │              │   │                 │  │
+│  └──────┬───────┘   └──────┬───────┘   └───────┬─────────┘  │
+│         │                  │                   │            │
+│  ┌──────▼──────────────────▼───────────────────▼──────────┐ │
+│  │               NodeAppManager (Docker SDK)              │ │
+│  └────────────────────────┬───────────────────────────────┘ │
+└───────────────────────────┼─────────────────────────────────┘
                             │
-┌───────────────────────────▼──────────────────────────────────┐
-│                       Docker Engine                          │
-│                                                              │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
-│   │  custom      │  │  custom      │  │   custom         │   │
-│   │  image       │  │  image       │  │   image          │   │
-│   │  container   │  │  container   │  │   container      │   │
-│   └──────────────┘  └──────────────┘  └──────────────────┘   │
-└──────────────────────────────────────────────────────────────┘
+┌───────────────────────────▼─────────────────────────────────┐
+│                       Docker Engine                         │
+│                                                             │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│   │  custom      │  │  custom      │  │   custom         │  │
+│   │  image       │  │  image       │  │   container      │  │
+│   │  container   │  │  container   │  │                  │  │
+│   └──────────────┘  └──────────────┘  └──────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
                             │
                On crash → ntfy.sh push alert
 ```
 
-The backend runs as a single FastAPI process. The `NodeAppManager` class wraps the Docker SDK and is shared across all API routes. The Docker event listener runs on a separate thread via `run_in_executor` and uses `run_coroutine_threadsafe` to schedule notifications onto the main event loop without blocking it.
+The backend runs as a single FastAPI process. The `NodeAppManager` class wraps the Docker SDK and is shared across all API routes. The Docker event listener runs on a separate thread via `run_in_executor` and uses `asyncio.run_coroutine_threadsafe()` to schedule push notifications onto the main event loop without blocking the background thread.
 
 ---
 
@@ -159,6 +168,7 @@ node-app-manager/
 │       ├── utils/
 │       │   └── log_analyzer.py  # Node.js error extractor from raw logs
 │       ├── config.py            # Central settings — reads from .env
+│       ├── .env.example         # Environment variable template
 │       └── main.py              # FastAPI app setup, CORS, lifespan
 ├── frontend/
 │   └── src/
@@ -180,6 +190,10 @@ node-app-manager/
 │       │   ├── formatters.ts        # Port formatting helper
 │       │   └── logParser.ts         # Log line parser + colour classification
 │       └── App.tsx                  # Root component and layout
+├── deploy/
+│   ├── apache-node-manager.conf     # Apache virtual host config (reverse proxy)
+│   ├── nginx-node-manager.conf      # Nginx server block config (alternative)
+│   └── node-manager-backend.service # systemd user service for the backend
 ├── requirements.txt
 └── README.md
 ```
@@ -190,10 +204,11 @@ node-app-manager/
 
 ### Prerequisites
 
-- **Docker** installed and running on the host machine
+- **Docker** installed and running — rootless Docker is recommended for security
 - **Python 3.10+**
 - **Node.js 18+** (LTS) and **npm**
-- The user running the backend must have permission to access the Docker socket (`/var/run/docker.sock`)
+- **Apache HTTP Server** (for production) with `mod_proxy`, `mod_proxy_http`, `mod_proxy_wstunnel`, and `mod_rewrite`
+- The user running the backend must have permission to access the Docker socket
 
 ---
 
@@ -203,19 +218,18 @@ node-app-manager/
 # 1. Navigate to the backend directory
 cd backend
 
-# 2. (Recommended) Create and activate a virtual environment
+# 2. Create and activate a virtual environment
 python -m venv venv
 source venv/bin/activate        # Linux / macOS
-# venv\Scripts\activate         # Windows
 
 # 3. Install Python dependencies
 pip install -r requirements.txt
 
 # 4. Create your local .env from the template
-cp .env.example .env
+cp app/.env.example app/.env
 
 # 5. Edit .env and set your values (see Configuration below)
-nano .env
+nano app/.env
 
 # 6. Start the FastAPI server
 uvicorn app.main:app --reload --port 8000
@@ -235,31 +249,25 @@ cd frontend
 # 2. Install dependencies
 npm install
 
-# 3. Create your local .env from the template
-cp .env.example .env
-
-# 4. Edit .env if needed (see Configuration below)
-nano .env
-
-# 5. Start the development server
+# 3. Start the development server
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`.
+The frontend will be available at `http://localhost:5173`. All API requests use relative paths (`/api/...`) and are proxied to the backend automatically in production via Apache.
 
 ---
 
 ## Configuration
 
-All configuration is done via `.env` files.
+All runtime configuration is done via `backend/app/.env`.
 
-### Backend — `backend/.env`
+### Backend — `backend/app/.env`
 
 | Variable | Default | Description |
 |---|---|---|
 | `NTFY_TOPIC` | `NodeJS_App_Manager_123456789987654321` | The ntfy topic for crash alerts. Must match what is shown in the frontend dashboard. |
 | `NTFY_URL` | `https://ntfy.sh` | The ntfy server base URL. Change this if you are self-hosting ntfy. |
-| `CORS_ORIGINS` | `http://localhost:5173` | The URL of the frontend. Update to the production URL when deploying. |
+| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:5175` | Comma-separated list of allowed frontend origins. Update to the server address when deploying. |
 
 **Development:**
 ```env
@@ -272,26 +280,48 @@ CORS_ORIGINS=http://localhost:5173
 ```env
 NTFY_TOPIC=NodeJS_App_Manager_123456789987654321
 NTFY_URL=https://ntfy.sh
-CORS_ORIGINS=https://name.example
+CORS_ORIGINS=http://your-server-ip
 ```
 
-### Frontend — `frontend/.env`
+---
 
-| Variable | Default | Description |
-|---|---|---|
-| `VITE_API_URL` | `http://localhost:8000` | The URL of the backend API. Update to the production backend URL when deploying. |
+## Production Deployment
 
-**Development:**
-```env
-VITE_API_URL=http://localhost:8000
+The `deploy/` folder contains all files needed to run the system as a persistent service.
+
+### 1. Backend — systemd user service
+
+```bash
+mkdir -p ~/.config/systemd/user/
+cp deploy/node-manager-backend.service ~/.config/systemd/user/
+# Edit the service file to match the actual user, path, and UID
+systemctl --user daemon-reload
+systemctl --user enable node-manager-backend
+systemctl --user start node-manager-backend
+loginctl enable-linger $USER
 ```
 
-**Production:**
-```env
-VITE_API_URL=https://api.name.example
+### 2. Frontend — build and copy to web root
+
+```bash
+cd frontend
+npm install
+npm run build
+sudo mkdir -p /var/www/html/nodeapp
+sudo cp -r dist/* /var/www/html/nodeapp/
 ```
 
-> **Note:** After editing `frontend/.env`, restart the Vite dev server or rebuild (`npm run build`) for changes to take effect. Vite bakes environment variables into the bundle at build time.
+### 3. Apache — reverse proxy setup
+
+```bash
+sudo cp deploy/apache-node-manager.conf /etc/apache2/sites-available/node-manager.conf
+sudo a2enmod proxy proxy_http proxy_wstunnel rewrite
+sudo a2ensite node-manager.conf
+sudo apache2ctl configtest
+sudo systemctl reload apache2
+```
+
+An Nginx alternative configuration is also provided in `deploy/nginx-node-manager.conf` for deployments that use Nginx instead of Apache.
 
 ---
 
@@ -390,7 +420,7 @@ The crash detection pipeline works as follows:
 2. **Exit Code Filtering** — exits with code `0` (clean), `137` (SIGKILL), or `143` (SIGTERM) are considered intentional and ignored. Only genuinely unexpected crashes are processed.
 3. **Intentional Stop Guard** — if the container ID is in the `intentional_stops` set (populated by manual stop/restart/delete), the alert is suppressed and the ID is removed from the set.
 4. **Log Extraction** — the last 200 log lines are fetched and passed through `log_analyzer.py` to extract the relevant error block.
-5. **Push Notification** — `notifier.py` uses `asyncio.run_coroutine_threadsafe()` to schedule an async HTTP POST onto the main event loop, sending the alert to the configured ntfy server and topic.
+5. **Push Notification** — `notifier.py` sends an async HTTP POST via `asyncio.run_coroutine_threadsafe()`, scheduling the notification onto the main event loop and delivering the alert to the configured ntfy server and topic.
 
 To receive alerts on your phone, install the [ntfy app](https://ntfy.sh) and subscribe to the topic shown in the dashboard's notification banner.
 

@@ -31,6 +31,6 @@ def docker_event_listener(loop: asyncio.AbstractEventLoop):
                     except Exception as log_err:
                         error_log = f"[Log read error: {log_err}]"
 
-                    asyncio.run(send_ntfy_alert(container_name, exit_code, error_log))
+                    asyncio.run_coroutine_threadsafe(send_ntfy_alert(container_name, exit_code, error_log), loop)
     except Exception as e:
         print(f"Critical event listener error: {e}")

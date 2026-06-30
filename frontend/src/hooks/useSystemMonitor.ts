@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ContainerStats, SystemHistory } from '../types';
 
-const WS_BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/^http/, "ws");
+const WS_BASE = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`;
 
 export const useSystemMonitor = (containerIds: string[]) => {
   const [currentStats, setCurrentStats] = useState<Record<string, ContainerStats>>({});
