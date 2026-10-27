@@ -5,6 +5,14 @@
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Node.js App Manager dashboard with live CPU/RAM chart and log panel" width="900">
+  <br>
+  <em>Container list, live resource chart and a terminal-style log viewer. Red lines are errors, yellow are warnings, green is normal output.</em>
+</p>
+
+---
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -73,51 +81,9 @@ The system is designed to be operated by a system administrator, where the admin
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Browser (React)                      │
-│                                                             │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐  │
-│  │  HTTP/REST  │  │  WS /stats   │  │    WS /logs        │  │
-│  │  /api/      │  │  /api/monitor│  │  /api/monitor      │  │
-│  └──────┬──────┘  └──────┬───────┘  └──────────┬─────────┘  │
-└─────────┼────────────────┼─────────────────────┼────────────┘
-          │                │                     │
-┌─────────▼────────────────▼─────────────────────▼────────────┐
-│              Apache HTTP Server (Reverse Proxy)             │
-│                                                             │
-│  /             → React SPA static files                     │
-│  /api/         → FastAPI (HTTP proxy)                       │
-│  /api/monitor/ → FastAPI (WebSocket via mod_proxy_wstunnel) │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                   FastAPI Backend (Python)                  │
-│                                                             │
-│  ┌──────────────┐   ┌──────────────┐   ┌─────────────────┐  │
-│  │  apps router │   │monitor router│   │  event listener │  │
-│  │  (CRUD +     │   │  (WS stats + │   │  (background    │  │
-│  │  conflict    │   │   WS logs)   │   │   thread)       │  │
-│  │  detection)  │   │              │   │                 │  │
-│  └──────┬───────┘   └──────┬───────┘   └───────┬─────────┘  │
-│         │                  │                   │            │
-│  ┌──────▼──────────────────▼───────────────────▼──────────┐ │
-│  │               NodeAppManager (Docker SDK)              │ │
-│  └────────────────────────┬───────────────────────────────┘ │
-└───────────────────────────┼─────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────┐
-│                       Docker Engine                         │
-│                                                             │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│   │  custom      │  │  custom      │  │   custom         │  │
-│   │  image       │  │  image       │  │   container      │  │
-│   │  container   │  │  container   │  │                  │  │
-│   └──────────────┘  └──────────────┘  └──────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                            │
-               On crash → ntfy.sh push alert
-```
+<p align="center">
+  <img src="docs/diagrams/architecture.png" alt="System architecture" width="700">
+</p>
 
 The backend runs as a single FastAPI process. The `NodeAppManager` class wraps the Docker SDK and is shared across all API routes. The Docker event listener runs on a separate thread via `run_in_executor` and uses `asyncio.run_coroutine_threadsafe()` to schedule push notifications onto the main event loop without blocking the background thread.
 
@@ -414,6 +380,10 @@ A regex-based extractor that scans raw container logs for known Node.js error pa
 
 ## Crash Alert System
 
+<p align="center">
+  <img src="docs/diagrams/crash-pipeline.png" alt="Crash detection pipeline" width="560">
+</p>
+
 The crash detection pipeline works as follows:
 
 1. **Event Listener** (`core/events.py`) — runs in a background thread on startup via `run_in_executor`, listening to the Docker event stream filtered for `container die` events on managed containers.
@@ -423,6 +393,10 @@ The crash detection pipeline works as follows:
 5. **Push Notification** — `notifier.py` sends an async HTTP POST via `asyncio.run_coroutine_threadsafe()`, scheduling the notification onto the main event loop and delivering the alert to the configured ntfy server and topic.
 
 To receive alerts on your phone, install the [ntfy app](https://ntfy.sh) and subscribe to the topic shown in the dashboard's notification banner.
+
+<p align="center">
+  <img src="docs/screenshots/ntfy-alert.png" alt="ntfy push notification on a phone after a container crash" width="320">
+</p>
 
 ---
 
